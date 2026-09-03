@@ -1,0 +1,128 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* --------- Graph Structures --------- */
+typedef struct {
+    int to;
+    int distance;
+    int capacity;
+} Edge;
+
+typedef struct {
+    Edge edges[50];
+    int edgeCount;
+} Node;
+
+typedef struct {
+    Node nodes[50];
+    int nodeCount;
+} Graph;
+
+void initGraph(Graph *g, int n) {
+    int i;
+    g->nodeCount = n;
+    for (i = 0; i < n; i++) {
+        g->nodes[i].edgeCount = 0;
+    }
+}
+
+void addEdge(Graph *g, int from, int to, int distance, int capacity) {
+    Edge e;
+    e.to = to;
+    e.distance = distance;
+    e.capacity = capacity;
+    g->nodes[from].edges[g->nodes[from].edgeCount++] = e;
+}
+
+/* --------- Relief Request & Priority Queue --------- */
+typedef struct {
+    int zone;
+    int demand;
+    int urgency;
+    int distance;
+} ReliefRequest;
+
+typedef struct {
+    ReliefRequest arr[100];
+    int size;
+} PriorityQueue;
+
+void initPQ(PriorityQueue *pq) {
+    pq->size = 0;
+}
+
+int urgencyFirst(ReliefRequest r) {
+    return r.urgency;
+}
+
+int demandFirst(ReliefRequest r) {
+    return r.demand;
+}
+
+int hybridScore(ReliefRequest r) {
+    return (2 * r.urgency + r.demand) - r.distance;
+}
+
+void pushRequest(PriorityQueue *pq, ReliefRequest r, int (*strategy)(ReliefRequest)) {
+    int i, j;
+    pq->arr[pq->size++] = r;
+    // Simple insertion sort by score
+    for (i = 0; i < pq->size - 1; i++) {
+        for (j = i + 1; j < pq->size; j++) {
+            if (strategy(pq->arr[j]) > strategy(pq->arr[i])) {
+                ReliefRequest tmp = pq->arr[i];
+                pq->arr[i] = pq->arr[j];
+                pq->arr[j] = tmp;
+            }
+        }
+    }
+}
+
+ReliefRequest popRequest(PriorityQueue *pq) {
+    pq->size--;
+    return pq->arr[pq->size];
+}
+
+/* --------- Distribution Logic --------- */
+void dispatchSupplies(PriorityQueue *pq, Graph *g, int (*strategy)(ReliefRequest)) {
+    printf("\nDispatching supplies using strategy...\n");
+    while (pq->size > 0) {
+        ReliefRequest r = popRequest(pq);
+        printf("Zone %d served: Demand=%d, Urgency=%d, Distance=%d, Score=%d\n",
+               r.zone, r.demand, r.urgency, r.distance, strategy(r));
+    }
+}
+
+/* --------- Main --------- */
+int main() {
+    printf("=== Disaster Relief Supply Chain System ===\n");
+
+    Graph g;
+    initGraph(&g, 10);
+
+    addEdge(&g, 0, 1, 5, 10);
+    addEdge(&g, 0, 2, 8, 15);
+
+    PriorityQueue pq;
+    initPQ(&pq);
+
+    ReliefRequest r1 = {1, 50, 5, 8};
+    ReliefRequest r2 = {2, 30, 8, 5};
+    ReliefRequest r3 = {3, 40, 7, 10};
+
+    // Urgency-first strategy
+    pushRequest(&pq, r1, urgencyFirst);
+    pushRequest(&pq, r2, urgencyFirst);
+    pushRequest(&pq, r3, urgencyFirst);
+    dispatchSupplies(&pq, &g, urgencyFirst);
+
+    // Hybrid strategy
+    initPQ(&pq);
+    pushRequest(&pq, r1, hybridScore);
+    pushRequest(&pq, r2, hybridScore);
+    pushRequest(&pq, r3, hybridScore);
+    dispatchSupplies(&pq, &g, hybridScore);
+
+    return 0;
+}
